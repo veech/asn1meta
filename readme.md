@@ -20,9 +20,11 @@ To add metadata to an ASN.1 field, use the following format in your `.asn` files
 MyModule DEFINITIONS ::= BEGIN
 
     MyType ::= SEQUENCE {
-        -- @Meta
-        -- #Scale 0.1
-        -- #Range -12.8, 12.7
+        -- [Meta]
+        -- @Scale 0.1
+        -- @Range (-12.8, 12.7)
+        -- @Units 'm/s'
+        -- @Description 'Speed value'
         speed-value INTEGER (-128..127),
 
         -- Other fields...
@@ -33,28 +35,35 @@ END
 
 The metadata block consists of:
 
-- `-- @Meta`: Marks the start of a metadata block
-- `-- #Scale <value>`: Defines the scaling factor for the field
-- `-- #Range <min>, <max>`: Defines the physical value range
+- `-- [Meta]`: Marks the start of a metadata block
+- `-- @Key value`: Generic format for metadata entries
+- Common metadata keys include:
+  - `@Scale`: Defines the scaling factor for the field
+  - `@Range`: Defines the physical value range (as a tuple)
+  - `@Units`: Specifies the units for the field
+  - `@Description`: Provides a description of the field
 
 The metadata block must be immediately followed by the field definition.
 
 ### Parsing Metadata
 
 ```python
-from ans1meta import parse
+from ans1meta import parse_asn_files
 
 # Parse all .asn files in the current directory
-metadata = parse("*.asn")
+metadata = parse_asn_files("*.asn")
 
 # The returned dictionary structure:
 # {
 #     'MyModule': {
 #         'MyType': {
 #             'speed-value': {
-#                 'scale': 0.1,
-#                 'range': (-12.8, 12.7),
-#                 'range_constraint': (-128, 127)  # Optional, from INTEGER constraints
+#                 'Scale': 0.1,
+#                 'Range': (-12.8, 12.7),
+#                 'Units': 'm/s',
+#                 'Description': 'Speed value',
+#                 'field_type': 'INTEGER',
+#                 'integer_constraint': (-128, 127)
 #             }
 #         }
 #     }
@@ -73,9 +82,9 @@ python -m ans1meta "*.asn"
 
 The parsed metadata for each field includes:
 
-- `scale`: The scaling factor to convert between integer and physical values
-- `range`: Tuple of (min, max) representing the physical value range
-- `range_constraint`: Optional tuple of (min, max) from the INTEGER constraints
+- Any key-value pairs defined in the `@Key value` format
+- `field_type`: The ASN.1 type of the field
+- `integer_constraint`: Optional tuple of (min, max) from the INTEGER constraints
 
 ## License
 
