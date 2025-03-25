@@ -1,6 +1,5 @@
 import re
 from typing import Dict, Tuple, List, Iterator, Optional, Any
-from glob import glob
 
 # Overall nested dictionary:
 # Module -> Type -> Field -> { "field": { "type": ..., "constraint": ... }, "meta": { ... } }
@@ -157,12 +156,12 @@ def process_file(filename: str) -> ModuleDict:
   return data
 
 
-def parse_asn_files(file_pattern: str = "*.asn") -> ModuleDict:
+def parse_asn_files(asn_files: List[str]) -> ModuleDict:
   """
-  Process all ASN.1 files matching the given glob pattern and merge the metadata dictionaries.
+  Process all ASN.1 files and merge the metadata dictionaries.
   """
   overall_data: ModuleDict = {}
-  for filename in glob(file_pattern):
+  for filename in asn_files:
     file_data = process_file(filename)
     for mod, types in file_data.items():
       overall_data.setdefault(mod, {}).update(types)
@@ -172,11 +171,12 @@ def parse_asn_files(file_pattern: str = "*.asn") -> ModuleDict:
 # Example usage:
 if __name__ == "__main__":
   from argparse import ArgumentParser
+  from glob import glob
   from json import dumps
 
   parser = ArgumentParser()
   parser.add_argument("file_pattern", type=str)
   args = parser.parse_args()
 
-  metadata_dict = parse_asn_files(args.file_pattern)
+  metadata_dict = parse_asn_files(glob(args.file_pattern))
   print(dumps(metadata_dict, indent=2))
