@@ -58,12 +58,16 @@ metadata = parse_asn_files("*.asn")
 #     'MyModule': {
 #         'MyType': {
 #             'speed-value': {
-#                 'Scale': 0.1,
-#                 'Range': (-12.8, 12.7),
-#                 'Units': 'm/s',
-#                 'Description': 'Speed value',
-#                 'field_type': 'INTEGER',
-#                 'integer_constraint': (-128, 127)
+#                 'field': {
+#                     'type': 'INTEGER',
+#                     'constraint': (-128, 127)
+#                 },
+#                 'meta': {
+#                     'Scale': 0.1,
+#                     'Range': (-12.8, 12.7),
+#                     'Units': 'm/s',
+#                     'Description': 'Speed value'
+#                 }
 #             }
 #         }
 #     }
@@ -80,11 +84,13 @@ python -m ans1meta "*.asn"
 
 ## Metadata Structure
 
-The parsed metadata for each field includes:
+The parsed metadata for each field is organized into two main sections:
 
-- Any key-value pairs defined in the `@Key value` format
-- `field_type`: The ASN.1 type of the field
-- `integer_constraint`: Optional tuple of (min, max) from the INTEGER constraints
+- `field`: Contains the ASN.1 field information
+  - `type`: The ASN.1 type of the field
+  - `constraint`: Optional tuple of (min, max) from INTEGER constraints
+- `meta`: Contains all user-defined metadata
+  - Any key-value pairs defined in the `@Key value` format
 
 ## License
 

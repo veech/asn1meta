@@ -1,9 +1,9 @@
 import re
 from typing import Dict, Tuple, List, Iterator, Optional, Any
-from typing import TypedDict
 from glob import glob
 
-# Overall nested dictionary: Module -> Type -> Field -> Metadata.
+# Overall nested dictionary:
+# Module -> Type -> Field -> { "field": { "type": ..., "constraint": ... }, "meta": { ... } }
 ModuleDict = Dict[str, Dict[str, Dict[str, Dict[str, Any]]]]
 
 
@@ -68,9 +68,9 @@ def parse_generic_meta_block(meta_lines: List[str]) -> Dict[str, Any]:
 def parse_field_line(line: str) -> Optional[Tuple[str, str, Optional[Tuple[int, int]]]]:
   """
   Parse a field definition line.
-  Expected format: e.g.,
-     ascent-rate INTEGER (-128..127),
+  Expected format, for example:
      voltage Stat32u,
+     ascent-rate INTEGER (-128..127),
   Returns a tuple of:
      (field_name, field_type, integer_constraint)
   where integer_constraint is only provided if field_type is "INTEGER" and a constraint is given.
@@ -81,7 +81,6 @@ def parse_field_line(line: str) -> Optional[Tuple[str, str, Optional[Tuple[int, 
   field_name = m.group(1)
   field_type = m.group(2)
   integer_constraint: Optional[Tuple[int, int]] = None
-  # Only record constraint if the type is INTEGER.
   if field_type == "INTEGER" and m.group(3) and m.group(4):
     integer_constraint = (int(m.group(3)), int(m.group(4)))
   return field_name, field_type, integer_constraint
@@ -90,7 +89,7 @@ def parse_field_line(line: str) -> Optional[Tuple[str, str, Optional[Tuple[int, 
 def iter_entries_from_lines(lines: List[str]) -> Iterator[Tuple[str, str, str, Dict[str, Any]]]:
   """
   Given the lines from an ASN.1 file, yield tuples of
-     (module, type, field, metadata)
+     (module, type, field, { "field": {...}, "meta": {...} })
   using an iterator-based style.
   """
   current_module = "UnknownModule"
@@ -103,33 +102,27 @@ def iter_entries_from_lines(lines: List[str]) -> Iterator[Tuple[str, str, str, D
     if not line:
       continue
 
-    # Update module if possible.
     if (module_name := parse_module_line(line)) is not None:
       current_module = module_name
       continue
 
-    # Update type if possible.
     if (type_name := parse_type_line(line)) is not None:
       current_type = type_name
       in_sequence = True
       continue
 
-    # End of a sequence block.
     if in_sequence and line == "}":
       in_sequence = False
       current_type = "UnknownType"
       continue
 
-    # Look for a meta block when inside a sequence.
     if in_sequence and line.startswith("-- [Meta]"):
       meta_lines: List[str] = []
-      # Collect all subsequent lines starting with '-- @' (order doesn't matter).
       for candidate in line_iter:
         candidate = candidate.strip()
         if candidate.startswith("-- @"):
           meta_lines.append(candidate)
         else:
-          # The first non-meta line is assumed to be the field definition.
           field_line = candidate
           break
       else:
@@ -143,10 +136,10 @@ def iter_entries_from_lines(lines: List[str]) -> Iterator[Tuple[str, str, str, D
       if field_parsed is None:
         continue
       field_name, field_type, integer_constraint = field_parsed
-      meta["field_type"] = field_type
-      if integer_constraint is not None:
-        meta["integer_constraint"] = integer_constraint
-      yield (current_module, current_type, field_name, meta)
+      field_info: Dict[str, Any] = {"type": field_type}
+      if field_type == "INTEGER" and integer_constraint is not None:
+        field_info["constraint"] = integer_constraint
+      yield (current_module, current_type, field_name, {"field": field_info, "meta": meta})
   return
 
 
@@ -159,8 +152,8 @@ def process_file(filename: str) -> ModuleDict:
 
   entries = list(iter_entries_from_lines(lines))
   data: ModuleDict = {}
-  for module, typ, field, metadata in entries:
-    data.setdefault(module, {}).setdefault(typ, {})[field] = metadata
+  for module, typ, field, entry in entries:
+    data.setdefault(module, {}).setdefault(typ, {})[field] = entry
   return data
 
 
