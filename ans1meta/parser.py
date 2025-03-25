@@ -1,22 +1,10 @@
 import re
-from typing import Dict, Tuple, List, Iterator, Optional
+from typing import Dict, Tuple, List, Iterator, Optional, Any
 from typing import TypedDict
 from glob import glob
 
-# Define our metadata structures.
-
-
-class FieldMetadata(TypedDict):
-  scale: float
-  range: Tuple[float, float]
-
-
-class FieldMetadataOpt(FieldMetadata, total=False):
-  range_constraint: Tuple[int, int]
-
-
 # Overall nested dictionary: Module -> Type -> Field -> Metadata.
-ModuleDict = Dict[str, Dict[str, Dict[str, FieldMetadataOpt]]]
+ModuleDict = Dict[str, Dict[str, Dict[str, Dict[str, Any]]]]
 
 
 def parse_module_line(line: str) -> Optional[str]:
@@ -27,97 +15,137 @@ def parse_module_line(line: str) -> Optional[str]:
 
 def parse_type_line(line: str) -> Optional[str]:
   """Extract the type name from a SEQUENCE type definition line."""
-  m = re.match(r"^(\w+)\s*::=\s*SEQUENCE\s*{", line)
+  m = re.match(r"^([\w-]+)\s*::=\s*SEQUENCE\s*{", line)
   return m.group(1) if m else None
 
 
-def parse_meta_block_lines(scale_line: str, range_line: str) -> Optional[FieldMetadataOpt]:
+def parse_meta_value(val: str) -> Any:
   """
-  Parse the meta block lines for scale and range.
-  Expected formats:
-    -- #Scale 0.1
-    -- #Range (-12.8, 12.7)
+  Parse a meta value string.
+  - If the value is enclosed in parentheses, parse it as a tuple of floats.
+  - If it's enclosed in quotes, return the string without quotes.
+  - Otherwise, try to convert to a float; if that fails, return the stripped string.
   """
-  scale_m = re.match(r"--\s*#Scale\s+([0-9.]+)", scale_line)
-  range_m = re.match(r"--\s*#Range\s*\(\s*([-0-9.]+)\s*,\s*([-0-9.]+)\s*\)", range_line)
-  if scale_m is None or range_m is None:
-    return None
-  try:
-    scale_val = float(scale_m.group(1))
-    phys_min = float(range_m.group(1))
-    phys_max = float(range_m.group(2))
-  except ValueError:
-    return None
-  return {"scale": scale_val, "range": (phys_min, phys_max)}
+  val = val.strip()
+  if val.startswith("(") and val.endswith(")"):
+    inner = val[1:-1].strip()
+    parts = [p.strip() for p in inner.split(",")]
+    try:
+      return tuple(float(p) for p in parts)
+    except ValueError:
+      return val
+  elif (val.startswith("'") and val.endswith("'")) or (val.startswith('"') and val.endswith('"')):
+    return val[1:-1]
+  else:
+    try:
+      return float(val)
+    except ValueError:
+      return val
 
 
-def parse_field_line(line: str) -> Optional[Tuple[str, Optional[Tuple[int, int]]]]:
+def parse_generic_meta_block(meta_lines: List[str]) -> Dict[str, Any]:
+  """
+  Parse a list of meta lines.
+  Expected each meta line to be in the format:
+     -- @Key value
+  For example:
+     -- @Scale 0.1
+     -- @Range (-12.8, 12.7)
+     -- @Description 'Ascent rate'
+     -- @Units 'm/s'
+  Keys are used as provided and values are parsed via `parse_meta_value`.
+  """
+  meta: Dict[str, Any] = {}
+  for line in meta_lines:
+    m = re.match(r"--\s*@(\w+)\s+(.*)", line)
+    if m:
+      key = m.group(1)
+      value_str = m.group(2)
+      meta[key] = parse_meta_value(value_str)
+  return meta
+
+
+def parse_field_line(line: str) -> Optional[Tuple[str, str, Optional[Tuple[int, int]]]]:
   """
   Parse a field definition line.
-  Expected format: 'ascent-rate INTEGER (-128..127),' (the trailing comma is optional).
-  Returns (field_name, range_constraint) where range_constraint is optional.
+  Expected format: e.g.,
+     ascent-rate INTEGER (-128..127),
+     voltage Stat32u,
+  Returns a tuple of:
+     (field_name, field_type, integer_constraint)
+  where integer_constraint is only provided if field_type is "INTEGER" and a constraint is given.
   """
-  m = re.match(r"^([\w-]+)\s+INTEGER(?:\s*\(([-0-9]+)\.\.([-0-9]+)\))?,?", line)
+  m = re.match(r"^([\w-]+)\s+([\w-]+)(?:\s*\(([-0-9]+)\.\.([-0-9]+)\))?,?", line)
   if m is None:
     return None
   field_name = m.group(1)
-  range_constraint = (int(m.group(2)), int(m.group(3))) if (m.group(2) and m.group(3)) else None
-  return field_name, range_constraint
+  field_type = m.group(2)
+  integer_constraint: Optional[Tuple[int, int]] = None
+  # Only record constraint if the type is INTEGER.
+  if field_type == "INTEGER" and m.group(3) and m.group(4):
+    integer_constraint = (int(m.group(3)), int(m.group(4)))
+  return field_name, field_type, integer_constraint
 
 
-def iter_entries_from_lines(lines: List[str]) -> Iterator[Tuple[str, str, str, FieldMetadataOpt]]:
+def iter_entries_from_lines(lines: List[str]) -> Iterator[Tuple[str, str, str, Dict[str, Any]]]:
   """
   Given the lines from an ASN.1 file, yield tuples of
-     (module, type, field, meta
-     data)
-  using a functional style with an iterator.
+     (module, type, field, metadata)
+  using an iterator-based style.
   """
   current_module = "UnknownModule"
   current_type = "UnknownType"
   in_sequence = False
 
-  # Create an iterator over the lines.
   line_iter = iter(lines)
   for raw_line in line_iter:
     line = raw_line.strip()
     if not line:
       continue
 
+    # Update module if possible.
     if (module_name := parse_module_line(line)) is not None:
       current_module = module_name
       continue
 
+    # Update type if possible.
     if (type_name := parse_type_line(line)) is not None:
       current_type = type_name
       in_sequence = True
       continue
 
+    # End of a sequence block.
     if in_sequence and line == "}":
       in_sequence = False
       current_type = "UnknownType"
       continue
 
-    # Process meta block if inside a SEQUENCE.
-    if in_sequence and line.startswith("-- @Meta"):
-      try:
-        # Consume next two lines for meta block.
-        scale_line = next(line_iter).strip()
-        range_line = next(line_iter).strip()
-      except StopIteration:
+    # Look for a meta block when inside a sequence.
+    if in_sequence and line.startswith("-- [Meta]"):
+      meta_lines: List[str] = []
+      # Collect all subsequent lines starting with '-- @' (order doesn't matter).
+      for candidate in line_iter:
+        candidate = candidate.strip()
+        if candidate.startswith("-- @"):
+          meta_lines.append(candidate)
+        else:
+          # The first non-meta line is assumed to be the field definition.
+          field_line = candidate
+          break
+      else:
+        continue  # No field definition found.
+
+      meta = parse_generic_meta_block(meta_lines)
+      if not meta:
         continue
-      meta = parse_meta_block_lines(scale_line, range_line)
-      if meta is None:
-        continue
-      # Consume next non-empty line for the field definition.
-      field_line = next((l.strip() for l in line_iter if l.strip()), None)
-      if field_line is None:
-        continue
+
       field_parsed = parse_field_line(field_line)
       if field_parsed is None:
         continue
-      field_name, range_constraint = field_parsed
-      if range_constraint is not None:
-        meta["range_constraint"] = range_constraint
+      field_name, field_type, integer_constraint = field_parsed
+      meta["field_type"] = field_type
+      if integer_constraint is not None:
+        meta["integer_constraint"] = integer_constraint
       yield (current_module, current_type, field_name, meta)
   return
 
@@ -151,9 +179,11 @@ def parse_asn_files(file_pattern: str = "*.asn") -> ModuleDict:
 # Example usage:
 if __name__ == "__main__":
   from argparse import ArgumentParser
+  from json import dumps
+
   parser = ArgumentParser()
   parser.add_argument("file_pattern", type=str)
   args = parser.parse_args()
 
   metadata_dict = parse_asn_files(args.file_pattern)
-  print(metadata_dict)
+  print(dumps(metadata_dict, indent=2))
