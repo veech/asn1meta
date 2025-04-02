@@ -21,10 +21,10 @@ MyModule DEFINITIONS ::= BEGIN
 
     MyType ::= SEQUENCE {
         -- [Meta]
-        -- @Scale 0.1
-        -- @Range (-12.8, 12.7)
-        -- @Units 'm/s'
-        -- @Description 'Speed value'
+        -- [Scale] 0.1
+        -- [Range] (-12.8, 12.7)
+        -- [Units] m/s
+        -- [Description] Speed value
         speed-value INTEGER (-128..127),
 
         -- Other fields...
@@ -36,12 +36,12 @@ END
 The metadata block consists of:
 
 - `-- [Meta]`: Marks the start of a metadata block
-- `-- @Key value`: Generic format for metadata entries
+- `-- [Key] value`: Generic format for metadata entries
 - Common metadata keys include:
-  - `@Scale`: Defines the scaling factor for the field
-  - `@Range`: Defines the physical value range (as a tuple)
-  - `@Units`: Specifies the units for the field
-  - `@Description`: Provides a description of the field
+  - `[Scale]`: Defines the scaling factor for the field
+  - `[Range]`: Defines the physical value range (as a tuple)
+  - `[Units]`: Specifies the units for the field
+  - `[Description]`: Provides a description of the field
 
 The metadata block must be immediately followed by the field definition.
 

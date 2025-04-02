@@ -64,7 +64,7 @@ def iter_entries_from_lines(lines: List[str]) -> Iterator[Tuple[str, str, str, D
       meta_lines: List[str] = []
       for candidate in line_iter:
         candidate = candidate.strip()
-        if candidate.startswith("-- @"):
+        if candidate.startswith("-- ["):
           meta_lines.append(candidate)
         else:
           field_line = candidate
@@ -128,17 +128,17 @@ def parse_generic_meta_block(meta_lines: List[str]) -> Dict[str, Any]:
   """
   Parse a list of meta lines.
   Expected each meta line to be in the format:
-     -- @Key value
+     -- [Key] value
   For example:
-     -- @Scale 0.1
-     -- @Range (-12.8, 12.7)
-     -- @Description 'Ascent rate'
-     -- @Units 'm/s'
+     -- [Scale] 0.1
+     -- [Range] (-12.8, 12.7)
+     -- [Description] 'Ascent rate'
+     -- [Units] 'm/s'
   Keys are used as provided and values are parsed via `parse_meta_value`.
   """
   meta: Dict[str, Any] = {}
   for line in meta_lines:
-    m = re.match(r"--\s*@(\w+)\s+(.*)", line)
+    m = re.match(r"--\s*\[(\w+)\]\s+(.*)", line)
     if m:
       key = m.group(1)
       value_str = m.group(2)
