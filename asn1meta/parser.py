@@ -2,7 +2,7 @@ import re
 from typing import Dict, Tuple, List, Iterator, Optional, Any
 
 # Overall nested dictionary:
-# Module -> Type -> Field -> { "field": { "type": ..., "constraint": ... }, "meta": { ... } }
+# Module -> Type -> Field -> { "field": { "type": ..., "restrict-to": ... }, "meta": { ... } }
 ModuleDict = Dict[str, Dict[str, Dict[str, Dict[str, Any]]]]
 
 def parse_files(asn_files: List[str]) -> ModuleDict:
@@ -79,10 +79,10 @@ def iter_entries_from_lines(lines: List[str]) -> Iterator[Tuple[str, str, str, D
       field_parsed = parse_field_line(field_line)
       if field_parsed is None:
         continue
-      field_name, field_type, integer_constraint = field_parsed
+      field_name, field_type, integer_restrict_to = field_parsed
       field_info: Dict[str, Any] = {"type": field_type}
-      if field_type == "INTEGER" and integer_constraint is not None:
-        field_info["constraint"] = integer_constraint
+      if field_type == "INTEGER" and integer_restrict_to is not None:
+        field_info["restrict-to"] = integer_restrict_to
       yield (current_module, current_type, field_name, {"field": field_info, "meta": meta})
   return
 
@@ -153,18 +153,18 @@ def parse_field_line(line: str) -> Optional[Tuple[str, str, Optional[Tuple[int, 
      voltage Stat32u,
      ascent-rate INTEGER (-128..127),
   Returns a tuple of:
-     (field_name, field_type, integer_constraint)
-  where integer_constraint is only provided if field_type is "INTEGER" and a constraint is given.
+     (field_name, field_type, integer_restrict_to)
+  where integer_restrict_to is only provided if field_type is "INTEGER" and a restriction is given.
   """
   m = re.match(r"^([\w-]+)\s+([\w-]+)(?:\s*\(([-0-9]+)\.\.([-0-9]+)\))?,?", line)
   if m is None:
     return None
   field_name = m.group(1)
   field_type = m.group(2)
-  integer_constraint: Optional[Tuple[int, int]] = None
+  integer_restrict_to: Optional[Tuple[int, int]] = None
   if field_type == "INTEGER" and m.group(3) and m.group(4):
-    integer_constraint = (int(m.group(3)), int(m.group(4)))
-  return field_name, field_type, integer_constraint
+    integer_restrict_to = (int(m.group(3)), int(m.group(4)))
+  return field_name, field_type, integer_restrict_to
 
 
 # Example usage:

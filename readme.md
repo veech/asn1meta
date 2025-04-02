@@ -60,7 +60,7 @@ metadata = parse_asn_files("*.asn")
 #             'speed-value': {
 #                 'field': {
 #                     'type': 'INTEGER',
-#                     'constraint': (-128, 127)
+#                     'restrict-to': (-128, 127)
 #                 },
 #                 'meta': {
 #                     'Scale': 0.1,
@@ -88,7 +88,7 @@ The parsed metadata for each field is organized into two main sections:
 
 - `field`: Contains the ASN.1 field information
   - `type`: The ASN.1 type of the field
-  - `constraint`: Optional tuple of (min, max) from INTEGER constraints
+  - `restrict-to`: Optional tuple of (min, max) from INTEGER restrictions
 - `meta`: Contains all user-defined metadata
   - Any key-value pairs defined in the `@Key value` format
 
