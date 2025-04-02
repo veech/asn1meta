@@ -1,16 +1,16 @@
-# ANS1Meta
+# ASN1Meta
 
-ANS1Meta is a Python package that allows you to define and parse metadata for ASN.1 type definitions. It provides a simple way to annotate ASN.1 fields with additional information like scaling factors and physical value ranges.
+ASN1Meta is a Python package that allows you to define and parse metadata for ASN.1 type definitions. It provides a simple way to annotate ASN.1 fields with additional information like scaling factors and physical value ranges.
 
 ## Installation
 
 ```bash
-pip install ans1meta
+pip install asn1meta
 ```
 
 ## Usage
 
-ANS1Meta allows you to add metadata to your ASN.1 fields using special comment blocks. The metadata is parsed and made available through a simple Python API.
+ASN1Meta allows you to add metadata to your ASN.1 fields using special comment blocks. The metadata is parsed and made available through a simple Python API.
 
 ### Defining Metadata
 
@@ -48,7 +48,7 @@ The metadata block must be immediately followed by the field definition.
 ### Parsing Metadata
 
 ```python
-from ans1meta import parse_asn_files
+from asn1meta import parse_asn_files
 
 # Parse all .asn files in the current directory
 metadata = parse_asn_files("*.asn")
@@ -79,7 +79,7 @@ metadata = parse_asn_files("*.asn")
 The package also provides a command-line interface:
 
 ```bash
-python -m ans1meta "*.asn"
+python -m asn1meta "*.asn"
 ```
 
 ## Metadata Structure
