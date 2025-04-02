@@ -1,1 +1,1 @@
-from .parser import parse_asn_files
+from .parser import parse_files
