@@ -138,7 +138,7 @@ def parse_generic_meta_block(meta_lines: List[str]) -> Dict[str, Any]:
   """
   meta: Dict[str, Any] = {}
   for line in meta_lines:
-    m = re.match(r"--\s*\[(\w+)\]\s+(.*)", line)
+    m = re.match(r"--\s*\[(.+)\]\s+(.*)", line)
     if m:
       key = m.group(1)
       value_str = m.group(2)
